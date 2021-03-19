@@ -57,15 +57,13 @@ def so(prefix, suffix="random", where="fgdb"):
     """
     
     # set workspace location
-    if where == "in_memory":
-        location = "in_memory"
-    elif where == "fgdb":
-        location = env.scratchGDB
-    elif where == "folder":
+    if where == "folder":
         location = env.scratchFolder
+    elif where == "in_memory":
+        location = "in_memory"
     else:
         location = env.scratchGDB
-    
+
     # create and return full path
     if suffix == "unique":
         return CreateUniqueName(prefix, location)

@@ -30,9 +30,9 @@ def precip_table_etl_cnrccep(
     # Open the precipitation data csv and read all the precipitations out.
     with open(ws_precip) as g:
         input_precip= csv.reader(g)
-        
+
         # Skip the first 10 rows of the csv, which are assorted header information.
-        for j in range (1, 11):
+        for _ in range (1, 11):
             next(g)
 
         k=1
@@ -44,7 +44,7 @@ def precip_table_etl_cnrccep(
             if k>8:
                 break
             else:
-                k=k+1
+                k += 1
     return precips
 
 def precip_table_etl_noaa(
@@ -89,9 +89,12 @@ def precip_table_etl_noaa(
         .select(t1, desc_field, lambda v: v == duration_val)\
         .cutout(desc_field)
     # generate a new header with only columns within frequency min/max
-    h = tuple([
-        i for i in list(etl.header(t2)) if (int(i) >= frequency_min and int(i) <= frequency_max)
-    ])
+    h = tuple(
+        i
+        for i in list(etl.header(t2))
+        if (int(i) >= frequency_min and int(i) <= frequency_max)
+    )
+
     # for events within freq range, convert to cm, adjust for future rainfall
     t3 = etl\
         .cut(t2, h)\

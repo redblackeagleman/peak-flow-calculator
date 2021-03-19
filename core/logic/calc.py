@@ -36,8 +36,11 @@ def calculate_tc(
     """
     if not mean_slope:
         mean_slope = 0.00001
-    tc_hr = const_a * math.pow(max_flow_length, const_b) * math.pow((mean_slope / 100), const_c)
-    return tc_hr
+    return (
+        const_a
+        * math.pow(max_flow_length, const_b)
+        * math.pow((mean_slope / 100), const_c)
+    )
 
 def calculate_peak_flow(
     catchment_area_sqkm,
