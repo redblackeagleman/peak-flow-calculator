@@ -31,7 +31,7 @@ def lite(inlets, flow_dir_raster, slope_raster, cn_raster, precip_table_noaa, ou
     """
     Peak-Flow Calculator "Lite". Use with pre-calculated slope and flow direction rasters.
     """
-    output_data = main(
+    return main(
         inlets=inlets,
         pour_point_field=pour_point_field,
         flow_dir_raster=flow_dir_raster,
@@ -40,7 +40,6 @@ def lite(inlets, flow_dir_raster, slope_raster, cn_raster, precip_table_noaa, ou
         precip_table_noaa=precip_table_noaa,
         output=output
     )
-    return output_data
 
 @calc.command()
 @calc.argument('inlets')
@@ -67,7 +66,7 @@ def full(inlets, dem, cn_raster, precip_table_noaa, pour_point_field, output):
     flow_dir_raster = derived_rasters['flow_direction_raster']
     slope_raster = derived_rasters['slope_raster']
 
-    output_data = main(
+    return main(
         inlets=inlets,
         pour_point_field=pour_point_field,
         flow_dir_raster=flow_dir_raster,
@@ -76,9 +75,6 @@ def full(inlets, dem, cn_raster, precip_table_noaa, pour_point_field, output):
         precip_table_noaa=precip_table_noaa,
         output=output
     )
-    return output_data
-        
-    return
 
 @calc.command()
 @calc.argument('original_cn_raster')

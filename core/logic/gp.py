@@ -82,7 +82,7 @@ def prep_cn_raster(
     # make the DEM an ArcPy Raster object, so we can get the raster properties
     if not isinstance(dem,Raster):
         dem = Raster(dem)
-    
+
     msg("Clipping...")
     # clip the curve number raster, since it is likely for a broader study area
     clipped_cn = so("cn_clipped")
@@ -93,15 +93,12 @@ def prep_cn_raster(
         clipping_geometry="NONE",
         maintain_clipping_extent="NO_MAINTAIN_EXTENT"
     )
-    
+
     # set the snap raster for subsequent operations
     env.snapRaster = dem
-    
+
     # reproject and resample he curve number raster to match the dem
-    if not out_cn_raster:
-        prepped_cn = so("cn_prepped")
-    else:
-        prepped_cn = out_cn_raster
+    prepped_cn = so("cn_prepped") if not out_cn_raster else out_cn_raster
     msg("Projecting and Resampling...")
     ProjectRaster_management(
         in_raster=clipped_cn,
@@ -110,7 +107,7 @@ def prep_cn_raster(
         resampling_type="NEAREST",
         cell_size=dem.meanCellWidth
     )
-    
+
     return {
         "curve_number_raster": Raster(prepped_cn)
     } 
@@ -154,11 +151,11 @@ def build_cn_raster(
     env.cellSize = reference_raster.meanCellWidth
     env.extent = reference_raster
     env.outputCoordinateSystem = reference_raster
-    
+
     cs = env.outputCoordinateSystem.exportToString()
 
     # SOILS -------------------------------------
-    
+
     msg("Processing Soils...")
     # read the soils polygon into a raster, get list(set()) of all cell values from the landcover raster
     soils_raster_path = so("soils_raster")
@@ -196,14 +193,16 @@ def build_cn_raster(
     msg("Processing Lookup Table...")
     # read the lookup csv, clean it up, and use the lookups from above to limit it to just
     # those values in the rasters
-    t = etl\
-        .fromcsv(lookup_csv)\
-        .convert('utc', int)\
-        .convert('cn', int)\
-        .select('soil', lambda v: v in lookup_from_soils.keys())\
-        .convert('soil', lookup_from_soils)\
+    t = (
+        etl.fromcsv(lookup_csv)
+        .convert('utc', int)
+        .convert('cn', int)
+        .select('soil', lambda v: v in lookup_from_soils)
+        .convert('soil', lookup_from_soils)
         .select('utc', lambda v: v in landcover_values)
-    
+    )
+
+
     # This gets us a table where we the landcover class (as a number) corresponding to the 
     # correct value in the converted soil raster, with the corresponding curve number.
 
@@ -229,7 +228,7 @@ def build_cn_raster(
         resampling_type="NEAREST",
         cell_size=env.cellSize
     )
-    
+
     # cn_raster.save(out_cn_raster)
     return out_cn_raster
 
@@ -329,12 +328,12 @@ def derive_data_from_catchments(
     # store the results, keyed by a catchment ID (int) that comes from the
     # catchments layer gridcode
     results = {}
-    
+
     # make a raster object with the catchment raster
-    if not isinstance(catchment_areas,Raster):
-        c = Raster(catchment_areas)
-    else:
+    if isinstance(catchment_areas,Raster):
         c = catchment_areas
+    else:
+        c = Raster(catchment_areas)
     # if the catchment raster does not have an attribute table, build one
     if not c.hasRAT:
         BuildRasterAttributeTable_management(c, "Overwrite")
@@ -350,7 +349,7 @@ def derive_data_from_catchments(
     with SearchCursor(catchment_table, [raster_field]) as catchments:
 
         # TODO: implement multi-processing for this loop.
-        
+
         ResetProgressor()
         SetProgressor('step', "Mapping flow length for catchments", 0, catchment_count, 1)
         # msg("Mapping flow length for catchments")
@@ -365,7 +364,7 @@ def derive_data_from_catchments(
                 flow_direction_raster,
                 length_conv_factor
             )
-            if this_id in results.keys():
+            if this_id in results:
                 results[this_id]["max_fl"] = clean(fl_max)
             else:
                 results[this_id] = {"max_fl": clean(fl_max)}
@@ -381,11 +380,11 @@ def derive_data_from_catchments(
         for r in c:
             this_id = r[0]
             this_area = r[1]
-            if this_id in results.keys():
+            if this_id in results:
                 results[this_id]["avg_cn"] = clean(this_area)
             else:
                 results[this_id] = {"avg_cn": clean(this_area)}
-    
+
     # calculate average slope within each catchment for all catchments
     table_slopes = so("slopes_zs_table","timestamp","fgdb")
     msg("Slopes Table: {0}".format(table_slopes))
@@ -395,11 +394,11 @@ def derive_data_from_catchments(
         for r in c:
             this_id = r[0]
             this_area = r[1]
-            if this_id in results.keys():
+            if this_id in results:
                 results[this_id]["avg_slope"] = clean(this_area)
             else:
                 results[this_id] = {"avg_slope": clean(this_area)}
-    
+
     # calculate area of each catchment
     #ZonalGeometryAsTable(catchment_areas,"Value","output_table") # crashes like an mfer
     cp = so("catchmentpolygons","timestamp","in_memory")
@@ -407,10 +406,10 @@ def derive_data_from_catchments(
     RasterToPolygon_conversion(catchment_areas, cp, "NO_SIMPLIFY", raster_field)
 
     # Dissolve the converted polygons, since some of the raster zones may have corner-corner links
-    if not out_catchment_polygons:
-        cpd = so("catchmentpolygonsdissolved","timestamp","in_memory")
-    else:
+    if out_catchment_polygons:
         cpd = out_catchment_polygons
+    else:
+        cpd = so("catchmentpolygonsdissolved","timestamp","in_memory")
     Dissolve_management(
         in_features=cp,
         out_feature_class=cpd,
@@ -423,16 +422,16 @@ def derive_data_from_catchments(
         for r in c:
             this_id = r[0]
             this_area = r[1] * area_conv_factor
-            if this_id in results.keys():
+            if this_id in results:
                 results[this_id]["area_up"] = clean(this_area)
             else:
                 results[this_id] = {"area_up": clean(this_area)}
-    
+
     # flip results object into a records-style array of dictionaries
     # (this makes conversion to table later on simpler)
     # msg(results,"warning")
     records = []
-    for k in results.keys():
+    for k, v in results.items():
         record = {
             "area_up":0,
             "avg_slope":0,
@@ -440,12 +439,12 @@ def derive_data_from_catchments(
             "avg_cn":0,
             "tc_hr":0
         }
-        for each_result in record.keys():
-            if each_result in results[k].keys():
+        for each_result in record:
+            if each_result in v.keys():
                 record[each_result] = results[k][each_result]
         record["id"] = k
         records.append(record)
-    
+
     if out_catchment_polygons:
         return records, cpd
     else:
